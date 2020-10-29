@@ -13,7 +13,6 @@
 //
 //------------------------------------------------------------------------------
 
-#include "root_certificates.hpp"
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
@@ -26,39 +25,43 @@
 #include <iostream>
 #include <string>
 
+#include <nlohmann/json.hpp>
+
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
 namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 namespace ssl = boost::asio::ssl;       // from <boost/asio/ssl.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+using json = nlohmann::json;
+
+
+const std::string host = "test.deribit.com";
+const std::string relative_path = "/ws/api/v2";
+const std::string port = "443";
+
 
 // Sends a WebSocket message and prints the response
 int main(int argc, char** argv)
 {
     try
     {
-        // Check command line arguments.
-        if (argc != 4)
-        {
-            std::cerr <<
-                "Usage: websocket-client-sync-ssl <host> <port> <text>\n" <<
-                "Example:\n" <<
-                "    websocket-client-sync-ssl echo.websocket.org 443 \"Hello, world!\"\n";
-            return EXIT_FAILURE;
-        }
-        std::string host = argv[1];
-        auto const  port = argv[2];
-        auto const  text = argv[3];
+        std::string uuid = "fcf4c084a05c453fbf72bdf6ecb008d6";
+        std::string method = "public/get_time";
+        std::string payload = json({
+            {"jsonrpc", "2.0"},
+            {"id", uuid},
+            {"method", method},
+            {"params", {}}
+        }).dump();
 
         // The io_context is required for all I/O
         net::io_context ioc;
 
         // The SSL context is required, and holds certificates
-        ssl::context ctx{ ssl::context::tlsv12_client };
-
-        // This holds the root certificate used for verification
-        load_root_certificates(ctx);
+        ssl::context ctx{ ssl::context::tls };
+        ctx.set_default_verify_paths();
+        ctx.set_options(ssl::context::default_workarounds);
 
         // These objects perform our I/O
         tcp::resolver resolver{ ioc };
@@ -70,18 +73,10 @@ int main(int argc, char** argv)
         // Make the connection on the IP address we get from a lookup
         auto ep = net::connect(get_lowest_layer(ws), results);
 
-        // Set SNI Hostname (many hosts need this to handshake successfully)
-        if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str()))
-            throw beast::system_error(
-                beast::error_code(
-                    static_cast<int>(::ERR_get_error()),
-                    net::error::get_ssl_category()),
-                "Failed to set SNI Hostname");
-
         // Update the host_ string. This will provide the value of the
         // Host HTTP header during the WebSocket handshake.
         // See https://tools.ietf.org/html/rfc7230#section-5.4
-        host += ':' + std::to_string(ep.port());
+        std::string host_and_port = host + ':' + std::to_string(ep.port());
 
         // Perform the SSL handshake
         ws.next_layer().handshake(ssl::stream_base::client);
@@ -96,10 +91,10 @@ int main(int argc, char** argv)
             }));
 
         // Perform the websocket handshake
-        ws.handshake(host, "/");
+        ws.handshake(host_and_port, relative_path);
 
         // Send the message
-        ws.write(net::buffer(std::string(text)));
+        ws.write(net::buffer(payload));
 
         // This buffer will hold the incoming message
         beast::flat_buffer buffer;
@@ -110,10 +105,12 @@ int main(int argc, char** argv)
         // Close the WebSocket connection
         ws.close(websocket::close_code::normal);
 
-        // If we get here then the connection is closed gracefully
+
+        std::string output_msg = beast::buffers_to_string(buffer.data());
+        auto result = json::parse(output_msg)["result"];
 
         // The make_printable() function helps print a ConstBufferSequence
-        std::cout << beast::make_printable(buffer.data()) << std::endl;
+        std::cout << result << std::endl;
     }
     catch (std::exception const& e)
     {
