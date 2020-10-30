@@ -25,7 +25,11 @@
 #include <iostream>
 #include <string>
 
-#include <nlohmann/json.hpp>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/error/error.h>
+#include <rapidjson/error/en.h>
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
@@ -33,12 +37,23 @@ namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 namespace ssl = boost::asio::ssl;       // from <boost/asio/ssl.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
-using json = nlohmann::json;
 
 
 const std::string host = "test.deribit.com";
 const std::string relative_path = "/ws/api/v2";
 const std::string port = "443";
+
+
+const std::string GetJsonText(const rapidjson::Document& d)
+{
+    rapidjson::StringBuffer buffer;
+
+    // buffer.Clear();
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    d.Accept(writer);
+
+    return std::string(buffer.GetString(), buffer.GetSize());
+}
 
 
 // Sends a WebSocket message and prints the response
@@ -48,13 +63,19 @@ int main(int argc, char** argv)
     {
         std::string uuid = "fcf4c084a05c453fbf72bdf6ecb008d6";
         std::string method = "public/get_time";
-        std::string payload = json({
-            {"jsonrpc", "2.0"},
-            {"id", uuid},
-            {"method", method},
-            {"params", {}}
-        }).dump();
+        std::string msg;
 
+        rapidjson::Document d;
+        rapidjson::Document::AllocatorType& alloc = d.GetAllocator();
+
+        d.SetObject();
+        d.AddMember("jsonrc", "2.0", alloc);
+        d.AddMember("id", rapidjson::Value(uuid.c_str(), alloc), alloc);
+        d.AddMember("method", rapidjson::Value(method.c_str(), alloc), alloc);
+        d.AddMember("params", rapidjson::Value(rapidjson::kObjectType), alloc);
+
+        msg = GetJsonText(d);
+        
         // The io_context is required for all I/O
         net::io_context ioc;
 
@@ -94,7 +115,7 @@ int main(int argc, char** argv)
         ws.handshake(host_and_port, relative_path);
 
         // Send the message
-        ws.write(net::buffer(payload));
+        ws.write(net::buffer(msg));
 
         // This buffer will hold the incoming message
         beast::flat_buffer buffer;
@@ -106,11 +127,10 @@ int main(int argc, char** argv)
         ws.close(websocket::close_code::normal);
 
 
-        std::string output_msg = beast::buffers_to_string(buffer.data());
-        auto result = json::parse(output_msg)["result"];
+        msg = beast::buffers_to_string(buffer.data());
 
-        // The make_printable() function helps print a ConstBufferSequence
-        std::cout << result << std::endl;
+        d.Parse(msg.c_str());
+        std::cout << d["result"].GetInt64() << std::endl;
     }
     catch (std::exception const& e)
     {
