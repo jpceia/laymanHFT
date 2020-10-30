@@ -55,14 +55,13 @@ int main(int argc, char** argv)
         // Check command line arguments.
         if (argc < 2)
         {
-            std::cerr <<
-                "Usage: layman-hft <uri>\n" <<
-                "Example:\n" <<
-                "    layman-hft wss://test.deribit.com/ws/api/v2\n";
+            std::cerr << "Usage: layman-hft uri [client_id] [client_secret]\n" << std::endl;
             return EXIT_FAILURE;
         }
 
         const ParsedURI& uri = parseURI(argv[1]);
+        const std::string& client_id = argc > 2 ? argv[2] : "";
+        const std::string& client_secret = argc > 3 ? argv[3] : "";
 
         // -------------------------------------------------------------------
         //          CREATING A WEBSTOCKET AND CONNECTING TO THE HOST
@@ -110,6 +109,7 @@ int main(int argc, char** argv)
 
         // 'State' variables
         uuids::random_generator uuid_gen;
+        std::string refresh_token, access_token;
         std::unordered_map<std::string, std::unique_ptr<rapidjson::Document>> prev_requests;
 
         // 'reusable' variables
@@ -162,11 +162,27 @@ int main(int argc, char** argv)
             d.Parse(msg.c_str());
         };
 
-        // Initial requests
+        // -------------------------------------------------------------------
+        //                          INITIAL REQUEST
+        // -------------------------------------------------------------------
+
+        // Requesting authorizationand refresh tokens
+        send_msg("public/auth", {
+                {"grant_type", "client_credentials"},
+                {"client_id", client_id},
+                {"client_secret", client_secret}
+            });
+
+        // Requesting time from the API platform
         send_msg("public/get_time", {});
+
+        // setting heartbeat to check life
         send_msg("public/set_heartbeat", { {"interval", "10"} });
-        
-        // Eternal loop
+
+        // -------------------------------------------------------------------
+        //                                LOOP
+        // -------------------------------------------------------------------
+
         while (ws.is_open())
         {
             // Receiving the message
@@ -199,19 +215,40 @@ int main(int argc, char** argv)
                 prev_requests.erase(it);
 
                 const std::string& method = (*request.get())["method"].GetString();
+                const auto& result = response["result"];
 
                 if (method == "public/get_time")
                 {
                     long t_system = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
-                    long t_server = response["result"].GetInt64();
+                    long t_server = result.GetInt64();
                     std::cout << "System time: " << t_system << std::endl;
                     std::cout << "Server time: " << t_server << std::endl;
                     std::cout << std::endl;
                 }
+                else if (method == "public/auth")
+                {
+                    std::cout << "Receiving new authorization tokens." << std::endl;
+                    refresh_token = result["refresh_token"].GetString();
+                    access_token = result["access_token"].GetString();
+                }
             }
             else if (response.HasMember("error"))
             {
-                // todo later...
+                prev_requests.erase(response["id"].GetString());
+
+                const auto& error = response["error"];
+                int code = error["code"].GetInt();
+
+                std::cout << "Received error message: (" << code << ") " << error["message"].GetString() << std::endl;
+
+                if (code == 13009)
+                {
+                    std::cout << "Expired access_token, requesting a new one." << std::endl;
+                    send_msg("public_auth", {
+                            {"grant_type", "refresh_token"},
+                            {"refresh_token", refresh_token}
+                        });
+                }
             }
         }
 
