@@ -53,7 +53,7 @@ const std::string GetJsonText(const rapidjson::Document& d)
 int main(int argc, char** argv)
 {
     try
-    {       
+    {
         // -------------------------------------------------------------------
         //          CREATING A WEBSTOCKET AND CONNECTING TO THE HOST
         // -------------------------------------------------------------------
@@ -166,7 +166,7 @@ int main(int argc, char** argv)
             // checking the response type
             if (response.HasMember("method") && response["method"].IsString())
             {
-                std::string method = response["method"].GetString();
+                const std::string& method = response["method"].GetString();
 
                 if (method == "subscription")
                 {
@@ -174,7 +174,7 @@ int main(int argc, char** argv)
                 }
                 else if (method == "heartbeat")
                 {
-                    std::string type = response["params"]["type"].GetString();
+                    const std::string& type = response["params"]["type"].GetString();
                     if (type == "test_request")
                     {
                         send_msg("public/test", {});
@@ -184,11 +184,11 @@ int main(int argc, char** argv)
             }
             else if (response.HasMember("result"))
             {
-                auto it = prev_requests.find(response["id"].GetString());
+                const auto& it = prev_requests.find(response["id"].GetString());
                 request = std::move(it->second);
                 prev_requests.erase(it);
 
-                std::string method = (*request.get())["method"].GetString();
+                const std::string& method = (*request.get())["method"].GetString();
 
                 if (method == "public/get_time")
                 {
