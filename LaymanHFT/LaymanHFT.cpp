@@ -50,24 +50,11 @@ const std::string GetJsonText(const rapidjson::Document& d)
 int main(int argc, char** argv)
 {
     try
-    {
+    {       
+        // -------------------------------------------------------------------
+        //          CREATING A WEBSTOCKET AND CONNECTING TO THE HOST
+        // -------------------------------------------------------------------
 
-        boost::uuids::random_generator uuid_gen;
-        std::string uuid = boost::uuids::to_string(uuid_gen());
-        std::string method = "public/get_time";
-        std::string msg;
-
-        rapidjson::Document d;
-        rapidjson::Document::AllocatorType& alloc = d.GetAllocator();
-
-        d.SetObject();
-        d.AddMember("jsonrc", "2.0", alloc);
-        d.AddMember("id", rapidjson::Value(uuid.c_str(), alloc), alloc);
-        d.AddMember("method", rapidjson::Value(method.c_str(), alloc), alloc);
-        d.AddMember("params", rapidjson::Value(rapidjson::kObjectType), alloc);
-
-        msg = GetJsonText(d);
-        
         // The io_context is required for all I/O
         net::io_context ioc;
 
@@ -106,23 +93,44 @@ int main(int argc, char** argv)
         // Perform the websocket handshake
         ws.handshake(host_and_port, relative_path);
 
-        // Send the message
-        ws.write(net::buffer(msg));
+        // -------------------------------------------------------------------
 
-        // This buffer will hold the incoming message
-        beast::flat_buffer buffer;
+        uuids::random_generator uuid_gen;
+        rapidjson::Document d;
 
-        // Read a message into our buffer
-        ws.read(buffer);
+        auto send_msg = [&uuid_gen, &ws](const std::string& method, rapidjson::Value params) {
+            rapidjson::Document d;
+            rapidjson::Document::AllocatorType& alloc = d.GetAllocator();
+            std::string id = uuids::to_string(uuid_gen());
+
+            d.SetObject();
+            d.AddMember("jsonrc", "2.0", alloc);
+            d.AddMember("id", rapidjson::Value(id.c_str(), alloc), alloc);
+            d.AddMember("method", rapidjson::Value(method.c_str(), alloc), alloc);
+            d.AddMember("params", params, alloc);
+
+            rapidjson::StringBuffer buffer;
+            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+            d.Accept(writer);
+            const std::string& msg = std::string(buffer.GetString(), buffer.GetSize());
+            ws.write(net::buffer(msg));
+        };
+
+        auto recv_msg = [&ws](rapidjson::Document& d) {
+            beast::flat_buffer buffer;     // This buffer will hold the incoming message
+            ws.read(buffer);               // Read a message into our buffer
+
+            const std::string& msg = beast::buffers_to_string(buffer.data());
+            d.Parse(msg.c_str());
+        };
+
+        send_msg("public/get_time", rapidjson::Value(rapidjson::kObjectType));
+        recv_msg(d);
+        
+        std::cout << d["result"].GetInt64() << std::endl;
 
         // Close the WebSocket connection
         ws.close(websocket::close_code::normal);
-
-
-        msg = beast::buffers_to_string(buffer.data());
-
-        d.Parse(msg.c_str());
-        std::cout << d["result"].GetInt64() << std::endl;
     }
     catch (std::exception const& e)
     {
