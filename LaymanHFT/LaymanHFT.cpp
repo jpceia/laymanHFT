@@ -15,11 +15,17 @@
 #include <rapidjson/error/error.h>
 #include <rapidjson/error/en.h>
 
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+
+
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
 namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 namespace ssl = boost::asio::ssl;       // from <boost/asio/ssl.hpp>
+namespace uuids = boost::uuids;         // from <boost/uuid/uuid.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 
@@ -45,7 +51,9 @@ int main(int argc, char** argv)
 {
     try
     {
-        std::string uuid = "fcf4c084a05c453fbf72bdf6ecb008d6";
+
+        boost::uuids::random_generator uuid_gen;
+        std::string uuid = boost::uuids::to_string(uuid_gen());
         std::string method = "public/get_time";
         std::string msg;
 
