@@ -34,9 +34,6 @@ namespace uuids = boost::uuids;         // from <boost/uuid/uuid.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 
-const ParsedURI& uri = parseURI("wss://test.deribit.com/ws/api/v2");
-
-
 const std::string GetJsonText(const rapidjson::Document& d)
 {
     rapidjson::StringBuffer buffer;
@@ -54,6 +51,19 @@ int main(int argc, char** argv)
 {
     try
     {
+
+        // Check command line arguments.
+        if (argc < 2)
+        {
+            std::cerr <<
+                "Usage: layman-hft <uri>\n" <<
+                "Example:\n" <<
+                "    layman-hft wss://test.deribit.com/ws/api/v2\n";
+            return EXIT_FAILURE;
+        }
+
+        const ParsedURI& uri = parseURI(argv[1]);
+
         // -------------------------------------------------------------------
         //          CREATING A WEBSTOCKET AND CONNECTING TO THE HOST
         // -------------------------------------------------------------------
