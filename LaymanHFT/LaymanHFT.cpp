@@ -21,6 +21,8 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 
+#include "utils.h"
+
 
 namespace chrono = std::chrono;
 namespace beast = boost::beast;         // from <boost/beast.hpp>
@@ -32,9 +34,7 @@ namespace uuids = boost::uuids;         // from <boost/uuid/uuid.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 
-const std::string host = "test.deribit.com";
-const std::string relative_path = "/ws/api/v2";
-const std::string port = "443";
+const ParsedURI& uri = parseURI("wss://test.deribit.com/ws/api/v2");
 
 
 const std::string GetJsonText(const rapidjson::Document& d)
@@ -71,7 +71,7 @@ int main(int argc, char** argv)
         websocket::stream<beast::ssl_stream<tcp::socket>> ws{ ioc, ctx };
 
         // Look up the domain name
-        auto const results = resolver.resolve(host, port);
+        auto const results = resolver.resolve(uri.domain, uri.port);
 
         // Make the connection on the IP address we get from a lookup
         auto ep = net::connect(get_lowest_layer(ws), results);
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
         // Update the host_ string. This will provide the value of the
         // Host HTTP header during the WebSocket handshake.
         // See https://tools.ietf.org/html/rfc7230#section-5.4
-        std::string host_and_port = host + ':' + std::to_string(ep.port());
+        std::string host = uri.domain + ':' + std::to_string(ep.port());
 
         // Perform the SSL handshake
         ws.next_layer().handshake(ssl::stream_base::client);
@@ -94,7 +94,7 @@ int main(int argc, char** argv)
             }));
 
         // Perform the websocket handshake
-        ws.handshake(host_and_port, relative_path);
+        ws.handshake(host, uri.resource);
 
         // -------------------------------------------------------------------
 
