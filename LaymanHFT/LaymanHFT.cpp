@@ -152,10 +152,58 @@ int main(int argc, char** argv)
             d.Parse(msg.c_str());
         };
 
+        // Initial requests
         send_msg("public/get_time", {});
-        recv_msg(response);
+        send_msg("public/set_heartbeat", { {"interval", "10"} });
         
-        std::cout << response["result"].GetInt64() << std::endl;
+        // Eternal loop
+        while (ws.is_open())
+        {
+            // Receiving the message
+            // it waits if needed
+            recv_msg(response);
+
+            // checking the response type
+            if (response.HasMember("method") && response["method"].IsString())
+            {
+                std::string method = response["method"].GetString();
+
+                if (method == "subscription")
+                {
+                    // todo later...
+                }
+                else if (method == "heartbeat")
+                {
+                    std::string type = response["params"]["type"].GetString();
+                    if (type == "test_request")
+                    {
+                        send_msg("public/test", {});
+                        send_msg("public/get_time", {});
+                    }
+                }
+            }
+            else if (response.HasMember("result"))
+            {
+                auto it = prev_requests.find(response["id"].GetString());
+                request = std::move(it->second);
+                prev_requests.erase(it);
+
+                std::string method = (*request.get())["method"].GetString();
+
+                if (method == "public/get_time")
+                {
+                    long t_system = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    long t_server = response["result"].GetInt64();
+                    std::cout << "System time: " << t_system << std::endl;
+                    std::cout << "Server time: " << t_server << std::endl;
+                    std::cout << std::endl;
+                }
+            }
+            else if (response.HasMember("error"))
+            {
+                // todo later...
+            }
+        }
 
         // Close the WebSocket connection
         ws.close(websocket::close_code::normal);
