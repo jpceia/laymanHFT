@@ -24,6 +24,7 @@
 #include <boost/variant.hpp>
 
 #include "utils.hpp"
+#include "book.hpp"
 
 
 namespace chrono = std::chrono;
@@ -115,6 +116,9 @@ int main(int argc, char** argv)
         uuids::random_generator uuid_gen;
         std::string refresh_token, access_token;
         std::unordered_map<std::string, std::unique_ptr<rapidjson::Document>> prev_requests;
+        long prev_change_id;
+        Bids bids;
+        Asks asks;
 
         // 'reusable' variables
         std::unique_ptr<rapidjson::Document> request;
@@ -219,10 +223,29 @@ int main(int argc, char** argv)
             if (response.HasMember("method") && response["method"].IsString())
             {
                 const std::string& method = response["method"].GetString();
+                auto& params = response["params"];
 
                 if (method == "subscription")
                 {
-                    // todo later...
+                    const std::string& channel = params["channel"].GetString();
+                    auto& data = params["data"];
+
+                    if (channel == book_channel)
+                    {
+                        long change_id = data["change_id"].GetInt64();
+                        if (data.HasMember("prev_change_id"))
+                        {
+                            long _prev_change_id = data["prev_change_id"].GetInt64();
+                            if (_prev_change_id != prev_change_id)
+                            {
+                                throw std::exception("Invalid change_id sequence");
+                            }
+                        }
+                        prev_change_id = change_id;
+
+                        asks.apply_changes(data["asks"]);
+                        bids.apply_changes(data["bids"]);
+                    }
                 }
                 else if (method == "heartbeat")
                 {
