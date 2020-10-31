@@ -148,7 +148,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="book.hpp" />
-    <ClInclude Include="utils.h" />
+    <ClInclude Include="utils.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
