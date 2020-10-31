@@ -21,6 +21,8 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 
+#include <boost/variant.hpp>
+
 #include "utils.h"
 
 
@@ -107,6 +109,8 @@ int main(int argc, char** argv)
 
         // -------------------------------------------------------------------
 
+        const std::string book_channel = "book.BTC-25DEC20.100ms";
+
         // 'State' variables
         uuids::random_generator uuid_gen;
         std::string refresh_token, access_token;
@@ -118,7 +122,10 @@ int main(int argc, char** argv)
 
         auto send_msg = [&uuid_gen, &prev_requests, &ws](
             const std::string& method,
-            const std::unordered_map<std::string, std::string>& params)
+            const std::unordered_map<
+                std::string,
+                boost::variant<std::string, std::vector<std::string>>
+            >& params)
         {
             std::unique_ptr<rapidjson::Document> d(new rapidjson::Document());
             rapidjson::Document::AllocatorType& alloc = d->GetAllocator();
@@ -129,17 +136,33 @@ int main(int argc, char** argv)
             d->AddMember("id", rapidjson::Value(id.c_str(), alloc), alloc);
             d->AddMember("method", rapidjson::Value(method.c_str(), alloc), alloc);
 
-            rapidjson::Value v_params(rapidjson::kObjectType);
+            rapidjson::Value o_params(rapidjson::kObjectType);
 
             for (auto& it : params)
             {
-                v_params.AddMember(
-                    rapidjson::Value(it.first.c_str(), alloc),
-                    rapidjson::Value(it.second.c_str(), alloc),
-                    alloc);
+                if (it.second.which() == 0) // string
+                {
+                    o_params.AddMember(
+                        rapidjson::Value(it.first.c_str(), alloc),
+                        rapidjson::Value(boost::get<std::string>(it.second).c_str(), alloc),
+                        alloc);
+                }
+                else // vector<string>
+                {
+                    const std::vector<std::string>& v = boost::get<std::vector<std::string>>(it.second);
+                    rapidjson::Value v_params(rapidjson::kArrayType);
+                    for (auto& jt : v)
+                    {
+                        v_params.PushBack(rapidjson::Value(jt.c_str(), alloc), alloc);
+                    }
+                    o_params.AddMember(
+                        rapidjson::Value(it.first.c_str(), alloc),
+                        v_params,
+                        alloc);
+                }
             }
 
-            d->AddMember("params", v_params, alloc);
+            d->AddMember("params", o_params, alloc);
             
             rapidjson::StringBuffer buffer;
             rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -178,6 +201,9 @@ int main(int argc, char** argv)
 
         // setting heartbeat to check life
         send_msg("public/set_heartbeat", { {"interval", "10"} });
+
+        // subscribing channel with book information
+        send_msg("public/subscribe", { {"channels", std::vector<std::string>({book_channel}) } });
 
         // -------------------------------------------------------------------
         //                                LOOP
