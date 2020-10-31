@@ -21,10 +21,16 @@
     <ClCompile Include="LaymanHFT.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="book.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="book.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="utils.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
