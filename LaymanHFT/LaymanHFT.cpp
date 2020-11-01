@@ -10,6 +10,7 @@
 #include <string>
 #include <chrono>
 #include <unordered_map>
+#include <math.h>
 
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
@@ -36,6 +37,8 @@ namespace ssl = boost::asio::ssl;       // from <boost/asio/ssl.hpp>
 namespace uuids = boost::uuids;         // from <boost/uuid/uuid.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
+const std::string interval = "100ms";
+
 
 const std::string GetJsonText(const rapidjson::Document& d)
 {
@@ -58,13 +61,14 @@ int main(int argc, char** argv)
         // Check command line arguments.
         if (argc < 2)
         {
-            std::cerr << "Usage: layman-hft uri [client_id] [client_secret]\n" << std::endl;
+            std::cerr << "Usage: layman-hft uri instrument [client_id] [client_secret]\n" << std::endl;
             return EXIT_FAILURE;
         }
 
         const ParsedURI& uri = parseURI(argv[1]);
-        const std::string& client_id = argc > 2 ? argv[2] : "";
-        const std::string& client_secret = argc > 3 ? argv[3] : "";
+        const std::string& instrument_name = argv[2];
+        const std::string& client_id = argc > 3 ? argv[3] : "";
+        const std::string& client_secret = argc > 4 ? argv[4] : "";
 
         // -------------------------------------------------------------------
         //          CREATING A WEBSTOCKET AND CONNECTING TO THE HOST
@@ -110,13 +114,14 @@ int main(int argc, char** argv)
 
         // -------------------------------------------------------------------
 
-        const std::string book_channel = "book.BTC-25DEC20.100ms";
+        const std::string book_channel = "book." + instrument_name + "." + interval;
 
         // 'State' variables
         uuids::random_generator uuid_gen;
         std::string refresh_token, access_token;
         std::unordered_map<std::string, std::unique_ptr<rapidjson::Document>> prev_requests;
         long prev_change_id;
+        double position_usd = std::nan(NULL);
         Bids bids;
         Asks asks;
 
@@ -172,11 +177,8 @@ int main(int argc, char** argv)
             rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
             
             d->Accept(writer);
-            
             const std::string& msg = std::string(buffer.GetString(), buffer.GetSize());
-            
             prev_requests.insert(std::make_pair(id, std::move(d)));
-            
             ws.write(net::buffer(msg));
         };
 
@@ -194,11 +196,16 @@ int main(int argc, char** argv)
         // -------------------------------------------------------------------
 
         // Requesting authorizationand refresh tokens
-        send_msg("public/auth", {
-                {"grant_type", "client_credentials"},
-                {"client_id", client_id},
-                {"client_secret", client_secret}
-            });
+        if (!client_id.empty())
+        {
+            send_msg("public/auth", {
+                    {"grant_type", "client_credentials"},
+                    {"client_id", client_id},
+                    {"client_secret", client_secret}
+                });
+
+            send_msg("private/get_position", { {"instrument_name", instrument_name } });
+        }
 
         // Requesting time from the API platform
         send_msg("public/get_time", {});
@@ -266,7 +273,31 @@ int main(int argc, char** argv)
                 const std::string& method = (*request.get())["method"].GetString();
                 const auto& result = response["result"];
 
-                if (method == "public/get_time")
+
+                // -----------------------------------------------------------
+                // private / get_position
+                // -----------------------------------------------------------
+
+                else if (method == "private/get_position")
+                {
+                    assert(result["instrument_name"].GetString() == instrument_name);
+                    const double& server_position_usd = result["size"].GetDouble();
+                    if (isnan(position_usd))
+                    {
+                        position_usd = server_position_usd;
+                        std::cout << "Initial position: " << position_usd << std::endl;
+                    }
+                    else if (position_usd != server_position_usd)
+                    {
+                        throw std::exception("Position (USD) mismatch");
+                    }
+                }
+
+                // -----------------------------------------------------------
+                // public / get_time
+                // -----------------------------------------------------------
+
+                else if (method == "public/get_time")
                 {
                     long t_system = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
                     long t_server = result.GetInt64();
@@ -274,6 +305,11 @@ int main(int argc, char** argv)
                     std::cout << "Server time: " << t_server << std::endl;
                     std::cout << std::endl;
                 }
+
+                // -----------------------------------------------------------
+                // public / auth
+                // -----------------------------------------------------------
+
                 else if (method == "public/auth")
                 {
                     std::cout << "Receiving new authorization tokens." << std::endl;
