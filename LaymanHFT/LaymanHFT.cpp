@@ -133,7 +133,7 @@ int main(int argc, char** argv)
             const std::string& method,
             const std::unordered_map<
                 std::string,
-                boost::variant<std::string, std::vector<std::string>>
+                boost::variant<std::string, double, std::vector<std::string>>
             >& params)
         {
             std::unique_ptr<rapidjson::Document> d(new rapidjson::Document());
@@ -154,6 +154,13 @@ int main(int argc, char** argv)
                     o_params.AddMember(
                         rapidjson::Value(it.first.c_str(), alloc),
                         rapidjson::Value(boost::get<std::string>(it.second).c_str(), alloc),
+                        alloc);
+                }
+                else if (it.second.which() == 1) // double
+                {
+                    o_params.AddMember(
+                        rapidjson::Value(it.first.c_str(), alloc),
+                        rapidjson::Value(boost::get<double>(it.second)),
                         alloc);
                 }
                 else // vector<string>
