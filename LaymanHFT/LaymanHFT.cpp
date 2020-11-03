@@ -115,6 +115,7 @@ int main(int argc, char** argv)
         // -------------------------------------------------------------------
 
         const std::string book_channel = "book." + instrument_name + "." + interval;
+        const std::string changes_channel = "user.changes." + instrument_name + "." + interval;
 
         // 'State' variables
         uuids::random_generator uuid_gen;
@@ -221,7 +222,7 @@ int main(int argc, char** argv)
         send_msg("public/set_heartbeat", { {"interval", "10"} });
 
         // subscribing channel with book information
-        send_msg("public/subscribe", { {"channels", std::vector<std::string>({book_channel}) } });
+        send_msg("public/subscribe", { {"channels", std::vector<std::string>({book_channel, changes_channel}) } });
 
         // -------------------------------------------------------------------
         //                                LOOP
@@ -244,6 +245,9 @@ int main(int argc, char** argv)
                     const std::string& channel = params["channel"].GetString();
                     auto& data = params["data"];
 
+                    // -------------------------------------------------------
+                    // Book updates
+                    // -------------------------------------------------------
                     if (channel == book_channel)
                     {
                         long change_id = data["change_id"].GetInt64();
@@ -259,6 +263,12 @@ int main(int argc, char** argv)
 
                         asks.apply_changes(data["asks"]);
                         bids.apply_changes(data["bids"]);
+                    }
+                    // -------------------------------------------------------
+                    // Changes updates
+                    // -------------------------------------------------------
+                    else if (channel == changes_channel)
+                    {
                     }
                 }
                 else if (method == "heartbeat")
