@@ -336,12 +336,15 @@ int main(int argc, char** argv)
             }
             else if (response.HasMember("error"))
             {
-                prev_requests.erase(response["id"].GetString());
+                const auto& it = prev_requests.find(response["id"].GetString());
+                request = std::move(it->second);
+                prev_requests.erase(it);
 
                 const auto& error = response["error"];
+                const auto& msg = error["message"].GetString();
                 int code = error["code"].GetInt();
 
-                std::cout << "Received error message: (" << code << ") " << error["message"].GetString() << std::endl;
+                std::cout << "Received error message: (" << code << ") " << msg << std::endl;
 
                 if (code == 13009)
                 {
@@ -350,6 +353,14 @@ int main(int argc, char** argv)
                             {"grant_type", "refresh_token"},
                             {"refresh_token", refresh_token}
                         });
+                }
+                else if (code == 13777)
+                {
+                    // ignore this error
+                }
+                else
+                {
+                    throw std::exception("Unexpected error");
                 }
             }
         }
