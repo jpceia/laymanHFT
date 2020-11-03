@@ -15,6 +15,7 @@ public:
 	void apply_changes(rapidjson::Value&);
 	void print();
 
+	double price_depth(double, double, double);
 	double price_depth(double);
 
 private:

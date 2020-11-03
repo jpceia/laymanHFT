@@ -65,6 +65,33 @@ void GenericBook<Compare>::print()
 }
 
 template<typename Compare>
+double GenericBook<Compare>::price_depth(
+	double quantity,
+	double order_price,
+	double order_quantity)
+{
+	double cum_qty = 0;
+	double price = -1;
+
+	for (const auto& it : *m_data)
+	{
+		cum_qty += it.second;
+		if (order_price == it.first)
+		{
+			cum_qty -= order_quantity;
+		}
+
+		if (cum_qty > quantity)
+		{
+			price = it.first;
+			break;
+		}
+	}
+
+	return price;
+}
+
+template<typename Compare>
 double GenericBook<Compare>::price_depth(double quantity)
 {
 	double cum_qty = 0;
@@ -73,6 +100,7 @@ double GenericBook<Compare>::price_depth(double quantity)
 	for (const auto& it : *m_data)
 	{
 		cum_qty += it.second;
+
 		if (cum_qty > quantity)
 		{
 			price = it.first;
