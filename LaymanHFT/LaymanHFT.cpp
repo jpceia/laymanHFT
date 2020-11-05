@@ -10,7 +10,9 @@
 #include <string>
 #include <chrono>
 #include <unordered_map>
+#include <assert.h>
 #include <math.h>
+#include <ctime>
 
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
@@ -27,6 +29,7 @@
 #include "utils.hpp"
 #include "book.hpp"
 
+#define CLIP(x, a, b) x > a ? (x < b ? x : b) : a
 
 namespace chrono = std::chrono;
 namespace beast = boost::beast;         // from <boost/beast.hpp>
@@ -37,7 +40,12 @@ namespace ssl = boost::asio::ssl;       // from <boost/asio/ssl.hpp>
 namespace uuids = boost::uuids;         // from <boost/uuid/uuid.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
-const std::string interval = "100ms";
+const double MIN_DEPTH_QTY = 500;
+const double MID_DEPTH_QTY = 2000;
+const double MAX_DEPTH_QTY = 20000;
+const double ORDER_AMOUNT = 5000;
+const double MAX_POSITION_USD = 50000;
+const std::string interval = "raw";
 
 
 const std::string GetJsonText(const rapidjson::Document& d)
@@ -121,8 +129,16 @@ int main(int argc, char** argv)
         uuids::random_generator uuid_gen;
         std::string refresh_token, access_token;
         std::unordered_map<std::string, std::unique_ptr<rapidjson::Document>> prev_requests;
-        long prev_change_id;
-        double position_usd = std::nan(NULL);
+        long prev_change_id = 0;
+        double position_usd = NAN;
+        double current_buy_price = 0;
+        double current_sell_price = 0;
+        double current_buy_qty = 0;
+        double current_sell_qty = 0;
+        std::string buy_order_id = "";
+        std::string sell_order_id = "";
+        bool wait_buy_order_id = false;
+        bool wait_sell_order_id = false;
         Bids bids;
         Asks asks;
 
@@ -261,14 +277,197 @@ int main(int argc, char** argv)
                         }
                         prev_change_id = change_id;
 
-                        asks.apply_changes(data["asks"]);
+
                         bids.apply_changes(data["bids"]);
+                        asks.apply_changes(data["asks"]);
+
+
+                        if (isnan(position_usd))
+                        {
+                            continue;
+                        }
+
+                        // ---------------------------------------------------
+                        // BUY ORDERS
+                        // ---------------------------------------------------
+
+                        if (buy_order_id.empty())
+                        {
+                            double buy_price = bids.price_depth(MID_DEPTH_QTY);
+
+                            if ((position_usd < MAX_POSITION_USD) &&
+                                (buy_price > 0) &&
+                                (!wait_buy_order_id))
+                            {
+                                double buy_qty = CLIP(
+                                    10 * floor(ORDER_AMOUNT * (1 - position_usd / MAX_POSITION_USD) / 10),
+                                    0, 2 * ORDER_AMOUNT
+                                );
+
+                                
+                                std::string label = "buy_" + instrument_name;
+
+                                std::cout << "Sending order to buy at " << buy_price << std::endl;
+
+                                send_msg("private/buy", {
+                                        {"instrument_name", instrument_name},
+                                        {"amount", buy_qty },
+                                        {"type", "limit"},
+                                        {"label", label},
+                                        {"price", buy_price },
+                                        {"post_only", "true"}
+                                    });
+
+                                current_buy_price = buy_price;
+                                current_buy_qty = buy_qty;
+                                wait_buy_order_id = true;
+                            }
+                        }
+                        else
+                        {
+                            double buy_price = bids.price_depth(MID_DEPTH_QTY, current_buy_price, current_buy_qty);
+                            double min_buy_price = bids.price_depth(MAX_DEPTH_QTY, current_buy_price, current_buy_qty);
+                            double max_buy_price = bids.price_depth(MIN_DEPTH_QTY, current_buy_price, current_buy_qty);
+                            //std::cout << "BIDS:\t" << min_buy_price << "\t" << buy_price << "\t" << max_buy_price << std::endl;
+
+                            if ((current_buy_price > max_buy_price) || (current_buy_price < min_buy_price))
+                            {
+                                double buy_qty = CLIP(
+                                    10 * floor(ORDER_AMOUNT * (1 - position_usd / MAX_POSITION_USD) / 10),
+                                    0, 2 * ORDER_AMOUNT
+                                );
+
+                                //std::cout << "Sending request to edit buy order to " << buy_price << std::endl;
+
+                                send_msg("private/edit", {
+                                        {"order_id", buy_order_id },
+                                        {"amount", buy_qty},
+                                        {"price", buy_price}
+                                    });
+
+                                current_buy_price = buy_price;
+                                current_buy_qty = buy_qty;
+                            }
+                        }
+
+                        // ---------------------------------------------------
+                        // SELL ORDERS
+                        // ---------------------------------------------------
+
+                        if (sell_order_id.empty())
+                        {
+                            double sell_price = asks.price_depth(MID_DEPTH_QTY);
+
+                            if ((position_usd > -MAX_POSITION_USD) &&
+                                (sell_price > 0) &&
+                                (!wait_sell_order_id))
+                            {
+                                double sell_qty = CLIP(
+                                    10 * floor(ORDER_AMOUNT * (1 + position_usd / MAX_POSITION_USD) / 10),
+                                    0, 2 * ORDER_AMOUNT
+                                );
+
+
+                                std::string label = "sell_" + instrument_name;
+
+                                std::cout << "Sending order to sell at " << sell_price << std::endl;
+
+                                send_msg("private/sell", {
+                                        {"instrument_name", instrument_name},
+                                        {"amount", sell_qty },
+                                        {"type", "limit"},
+                                        {"label", label},
+                                        {"price", sell_price },
+                                        {"post_only", "true"}
+                                    });
+
+                                current_sell_price = sell_price;
+                                current_sell_qty = sell_qty;
+                                wait_sell_order_id = true;
+                            }
+                        }
+                        else
+                        {
+                            double sell_price = asks.price_depth(MID_DEPTH_QTY, current_sell_price, current_sell_qty);
+                            double max_sell_price = asks.price_depth(MAX_DEPTH_QTY, current_sell_price, current_sell_qty);
+                            double min_sell_price = asks.price_depth(MIN_DEPTH_QTY * 0.5, current_sell_price, current_sell_qty);
+                            //std::cout << "ASKS:\t" << min_sell_price << "\t" << sell_price << "\t" << max_sell_price << std::endl;
+
+                            if ((current_sell_price > max_sell_price) || (current_sell_price < min_sell_price))
+                            {
+                                double sell_qty = CLIP(
+                                    10 * floor(ORDER_AMOUNT * (1 + position_usd / MAX_POSITION_USD) / 10),
+                                    0, 2 * ORDER_AMOUNT
+                                );
+
+                                // std::cout << "Sending request to edit sell order to " << sell_price << std::endl;
+
+                                send_msg("private/edit", {
+                                        {"order_id", sell_order_id },
+                                        {"amount", sell_qty},
+                                        {"price", sell_price}
+                                    });
+
+                                current_sell_price = sell_price;
+                                current_sell_qty = sell_qty;
+                            }
+                        }
                     }
                     // -------------------------------------------------------
                     // Changes updates
                     // -------------------------------------------------------
                     else if (channel == changes_channel)
                     {
+                        const auto& trades = data["trades"];
+
+                        for (auto it = trades.Begin(); it != trades.End(); ++it)
+                        {
+                            const auto& trade = *it;
+                            const std::string& direction = trade["direction"].GetString();
+                            const std::string& state = trade["state"].GetString();
+                            const double& amount = trade["amount"].GetDouble();
+
+                            if (state == "filled")
+                            {
+                                if (direction == "buy")
+                                {
+                                    std::cout << "Suy order filled" << std::endl;
+                                    position_usd += amount;
+                                    buy_order_id = "";
+                                    wait_buy_order_id = false;
+                                }
+                                else if (direction == "sell")
+                                {
+                                    std::cout << "Sell order filled" << std::endl;
+                                    position_usd -= amount;
+                                    sell_order_id = "";
+                                    wait_sell_order_id = false;
+                                }
+                                else
+                                {
+                                    throw std::exception("Invalid direction.");
+                                }
+                            }
+                            else if (state == "open")
+                            {
+                                if (direction == "buy")
+                                {
+                                    position_usd += amount;
+                                }
+                                else if (direction == "sell")
+                                {
+                                    position_usd -= amount;
+                                }
+                                else
+                                {
+                                    throw std::exception("Invalid direction.");
+                                }
+                            }
+                            else
+                            {
+                                throw std::exception("Unknown state.");
+                            }
+                        }
                     }
                 }
                 else if (method == "heartbeat")
@@ -290,6 +489,56 @@ int main(int argc, char** argv)
                 const std::string& method = (*request.get())["method"].GetString();
                 const auto& result = response["result"];
 
+
+                // -----------------------------------------------------------
+                // private / edit
+                // -----------------------------------------------------------
+
+                if (method == "private/edit")
+                {
+                    const auto& order = result["order"];
+                    const std::string& direction = order["direction"].GetString();
+                    const std::string& order_id = order["order_id"].GetString();
+                    
+                    if (direction == "buy")
+                    {
+                        assert(order_id == buy_order_id);
+                        // std::cout << "Received edit buy order confirmation" << std::endl;
+                    }
+                    else if (direction == "sell")
+                    {
+                        assert(order_id == sell_order_id);
+                        // std::cout << "Received edit sell order confirmation" << std::endl;
+                    }
+                    else
+                    {
+                        throw std::exception("Invalid direction.");
+                    }
+                }
+
+                // -----------------------------------------------------------
+                // private / buy
+                // -----------------------------------------------------------
+
+                else if (method == "private/buy")
+                {
+                    const auto& order = result["order"];
+                    buy_order_id = order["order_id"].GetString();
+                    wait_buy_order_id = false;
+                    std::cout << "Received buy order confirmation." << std::endl;
+                }
+
+                // -----------------------------------------------------------
+                // private / sell
+                // -----------------------------------------------------------
+
+                else if (method == "private/sell")
+                {
+                    const auto& order = result["order"];
+                    sell_order_id = order["order_id"].GetString();
+                    wait_buy_order_id = false;
+                    std::cout << "Received sell order confirmation." << std::endl;
+                }
 
                 // -----------------------------------------------------------
                 // private / get_position
@@ -353,6 +602,30 @@ int main(int argc, char** argv)
                             {"grant_type", "refresh_token"},
                             {"refresh_token", refresh_token}
                         });
+                }
+                else if ((code == 11044) || (code == 10010))
+                {
+                    // 11044 - Not open order
+                    // 10010 - Already closed
+
+                    const auto& params = (*request.get())["params"];
+                    const std::string& order_id = params["order_id"].GetString();
+                    const auto& amount = params["amount"].GetDouble();
+
+                    if (order_id == buy_order_id)
+                    {
+                        buy_order_id = "";
+                        wait_buy_order_id = false;
+                        // position_usd += amount;
+                        std::cout << "Closed buy order. Position=" << position_usd << std::endl;
+                    }
+                    else if (order_id == sell_order_id)
+                    {
+                        sell_order_id = "";
+                        wait_sell_order_id = false;
+                        // position_usd -= amount;
+                        std::cout << "Closed sell order. Position=" << position_usd << std::endl;
+                    }
                 }
                 else if (code == 13777)
                 {
