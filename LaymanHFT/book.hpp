@@ -6,11 +6,11 @@
 #include <rapidjson/document.h>
 
 template<typename Compare>
-class GenericBook
+class BookSide
 {
 public:
-	GenericBook();
-	~GenericBook();
+	BookSide();
+	~BookSide();
 
 	void apply_changes(rapidjson::Value&);
 	void print();
@@ -23,5 +23,5 @@ private:
 };
 
 
-using Asks = GenericBook<std::less<double>>;
-using Bids = GenericBook<std::greater<double>>;
+using Asks = BookSide<std::less<double>>;
+using Bids = BookSide<std::greater<double>>;

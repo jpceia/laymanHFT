@@ -3,24 +3,24 @@
 #include <iostream>
 
 // explicit instantiations
-template class GenericBook<std::less<double> >;
-template class GenericBook<std::greater<double> >;
+template class BookSide<std::less<double> >;
+template class BookSide<std::greater<double> >;
 
 
 template<typename Compare>
-GenericBook<Compare>::GenericBook() :
+BookSide<Compare>::BookSide() :
 	m_data(new std::map<double, double, Compare>())
 {
 }
 
 template<typename Compare>
-GenericBook<Compare>::~GenericBook()
+BookSide<Compare>::~BookSide()
 {
 	delete m_data;
 }
 
 template<typename Compare>
-void GenericBook<Compare>::apply_changes(rapidjson::Value& arr)
+void BookSide<Compare>::apply_changes(rapidjson::Value& arr)
 {
 	assert(arr.IsArray());
 
@@ -54,7 +54,7 @@ void GenericBook<Compare>::apply_changes(rapidjson::Value& arr)
 }
 
 template<typename Compare>
-void GenericBook<Compare>::print()
+void BookSide<Compare>::print()
 {
 	std::cout << std::endl;
 	std::cout << "Price\tQuantity" << std::endl;
@@ -65,7 +65,7 @@ void GenericBook<Compare>::print()
 }
 
 template<typename Compare>
-double GenericBook<Compare>::price_depth(
+double BookSide<Compare>::price_depth(
 	double quantity,
 	double order_price,
 	double order_quantity)
@@ -92,7 +92,7 @@ double GenericBook<Compare>::price_depth(
 }
 
 template<typename Compare>
-double GenericBook<Compare>::price_depth(double quantity)
+double BookSide<Compare>::price_depth(double quantity)
 {
 	double cum_qty = 0;
 	double price = -1;
