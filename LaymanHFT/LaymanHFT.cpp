@@ -1,10 +1,3 @@
-#include <boost/beast/core.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/beast/websocket.hpp>
-#include <boost/beast/websocket/ssl.hpp>
-#include <boost/asio/connect.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ssl/stream.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -26,19 +19,13 @@
 
 #include <boost/variant.hpp>
 
-#include "utils.hpp"
+#include "connection.hpp"
 #include "book.hpp"
 
 #define CLIP(x, a, b) x > a ? (x < b ? x : b) : a
 
 namespace chrono = std::chrono;
-namespace beast = boost::beast;         // from <boost/beast.hpp>
-namespace http = beast::http;           // from <boost/beast/http.hpp>
-namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
-namespace net = boost::asio;            // from <boost/asio.hpp>
-namespace ssl = boost::asio::ssl;       // from <boost/asio/ssl.hpp>
 namespace uuids = boost::uuids;         // from <boost/uuid/uuid.hpp>
-using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 const double MIN_DEPTH_QTY = 500;
 const double MID_DEPTH_QTY = 2000;
@@ -73,7 +60,7 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
         }
 
-        const ParsedURI& uri = parseURI(argv[1]);
+        const URI& uri = parseURI(argv[1]);
         const std::string& instrument_name = argv[2];
         const std::string& client_id = argc > 3 ? argv[3] : "";
         const std::string& client_secret = argc > 4 ? argv[4] : "";
@@ -82,43 +69,7 @@ int main(int argc, char** argv)
         //          CREATING A WEBSTOCKET AND CONNECTING TO THE HOST
         // -------------------------------------------------------------------
 
-        // The io_context is required for all I/O
-        net::io_context ioc;
-
-        // The SSL context is required, and holds certificates
-        ssl::context ctx{ ssl::context::tls };
-        ctx.set_default_verify_paths();
-        ctx.set_options(ssl::context::default_workarounds);
-
-        // These objects perform our I/O
-        tcp::resolver resolver{ ioc };
-        websocket::stream<beast::ssl_stream<tcp::socket>> ws{ ioc, ctx };
-
-        // Look up the domain name
-        auto const results = resolver.resolve(uri.domain, uri.port);
-
-        // Make the connection on the IP address we get from a lookup
-        auto ep = net::connect(get_lowest_layer(ws), results);
-
-        // Update the host_ string. This will provide the value of the
-        // Host HTTP header during the WebSocket handshake.
-        // See https://tools.ietf.org/html/rfc7230#section-5.4
-        std::string host = uri.domain + ':' + std::to_string(ep.port());
-
-        // Perform the SSL handshake
-        ws.next_layer().handshake(ssl::stream_base::client);
-
-        // Set a decorator to change the User-Agent of the handshake
-        ws.set_option(websocket::stream_base::decorator(
-            [](websocket::request_type& req)
-            {
-                req.set(http::field::user_agent,
-                    std::string(BOOST_BEAST_VERSION_STRING) +
-                    " websocket-client-coro");
-            }));
-
-        // Perform the websocket handshake
-        ws.handshake(host, uri.resource);
+        WSSession ws{ uri };
 
         // -------------------------------------------------------------------
 
@@ -203,16 +154,12 @@ int main(int argc, char** argv)
             d->Accept(writer);
             const std::string& msg = std::string(buffer.GetString(), buffer.GetSize());
             prev_requests.insert(std::make_pair(id, std::move(d)));
-            ws.write(net::buffer(msg));
+            ws.send(msg);
         };
 
         auto recv_msg = [&ws](rapidjson::Document& d)
         {
-            beast::flat_buffer buffer;     // This buffer will hold the incoming message
-            ws.read(buffer);               // Read a message into our buffer
-
-            const std::string& msg = beast::buffers_to_string(buffer.data());
-            d.Parse(msg.c_str());
+            d.Parse(ws.recv().c_str());
         };
 
         // -------------------------------------------------------------------
@@ -637,9 +584,6 @@ int main(int argc, char** argv)
                 }
             }
         }
-
-        // Close the WebSocket connection
-        ws.close(websocket::close_code::normal);
     }
     catch (std::exception const& e)
     {
