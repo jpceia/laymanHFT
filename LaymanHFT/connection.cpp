@@ -34,14 +34,14 @@ WSSession::WSSession(const URI& uri)
     ctx.set_default_verify_paths();
     ctx.set_options(ssl::context::default_workarounds);
 
-    m_ws = std::unique_ptr<tcp_websocket>(new tcp_websocket(ioc, ctx));
+    m_ws = std::unique_ptr<tcp_websocket>(new tcp_websocket(net::make_strand(ioc), ctx));
     tcp::resolver resolver{ ioc };
 
     // Look up the domain name
     auto const results = resolver.resolve(uri.domain, uri.port);
 
     // Make the connection on the IP address we get from a lookup
-    auto ep = get_lowest_layer(*m_ws.get()).connect(results);
+    auto ep = get_lowest_layer(*m_ws).connect(results);
 
     // Perform the SSL handshake
     m_ws->next_layer().handshake(ssl::stream_base::client);
@@ -60,6 +60,8 @@ WSSession::WSSession(const URI& uri)
         uri.domain + ':' + std::to_string(ep.port()),
         uri.resource
     );
+
+    m_ws->text(true);
 }
 
 WSSession::~WSSession()
