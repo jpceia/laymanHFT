@@ -87,9 +87,9 @@ void DeribitSession::subscribe(const std::vector<std::string>& channels)
 
 void DeribitSession::run()
 {
-    rapidjson::Document d;
     while (_session.is_open())
     {
+        rapidjson::Document d;
         d.Parse(_session.recv().c_str());
         this->on_message(d);
     }
