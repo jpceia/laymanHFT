@@ -34,20 +34,20 @@ WSSession::WSSession(const URI& uri)
     ctx.set_default_verify_paths();
     ctx.set_options(ssl::context::default_workarounds);
 
-    m_ws = std::unique_ptr<tcp_websocket>(new tcp_websocket(net::make_strand(ioc), ctx));
-    tcp::resolver resolver{ ioc };
+    _ws = std::unique_ptr<tcp_websocket>(new tcp_websocket(net::make_strand(_ioc), ctx));
+    tcp::resolver resolver{ _ioc };
 
     // Look up the domain name
     auto const results = resolver.resolve(uri.domain, uri.port);
 
     // Make the connection on the IP address we get from a lookup
-    auto ep = get_lowest_layer(*m_ws).connect(results);
+    auto ep = get_lowest_layer(*_ws).connect(results);
 
     // Perform the SSL handshake
-    m_ws->next_layer().handshake(ssl::stream_base::client);
+    _ws->next_layer().handshake(ssl::stream_base::client);
 
     // Set a decorator to change the User-Agent of the handshake
-    m_ws->set_option(websocket::stream_base::decorator(
+    _ws->set_option(websocket::stream_base::decorator(
         [](websocket::request_type& req)
         {
             req.set(http::field::user_agent,
@@ -56,34 +56,32 @@ WSSession::WSSession(const URI& uri)
         }));
 
     // Perform the websocket handshake
-    m_ws->handshake(
+    _ws->handshake(
         uri.domain + ':' + std::to_string(ep.port()),
         uri.resource
     );
-
-    m_ws->text(true);
 }
 
 WSSession::~WSSession()
 {
     // Close the WebSocket connection
-    m_ws->close(websocket::close_code::normal);
+    _ws->close(websocket::close_code::normal);
 }
 
 void WSSession::send(std::string msg)
 {
-    m_ws->write(net::buffer(msg));
+    _ws->write(net::buffer(msg));
 }
 
 std::string WSSession::recv()
 {
     beast::flat_buffer buffer;     // This buffer will hold the incoming message
-    m_ws->read(buffer);            // Read a message into our buffer
+    _ws->read(buffer);            // Read a message into our buffer
     return beast::buffers_to_string(buffer.data());
 }
 
 bool WSSession::is_open()
 {
-    return m_ws->is_open();
+    return _ws->is_open();
 }
 

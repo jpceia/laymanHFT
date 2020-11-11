@@ -9,18 +9,18 @@ template class BookSide<std::greater<double> >;
 
 template<typename Compare>
 BookSide<Compare>::BookSide() :
-	m_data(new std::map<double, double, Compare>())
+	_data(new std::map<double, double, Compare>())
 {
 }
 
 template<typename Compare>
 BookSide<Compare>::~BookSide()
 {
-	delete m_data;
+	delete _data;
 }
 
 template<typename Compare>
-void BookSide<Compare>::apply_changes(rapidjson::Value& arr)
+void BookSide<Compare>::apply_changes(const rapidjson::Value& arr)
 {
 	assert(arr.IsArray());
 
@@ -32,19 +32,19 @@ void BookSide<Compare>::apply_changes(rapidjson::Value& arr)
 
 		if (action == "new")
 		{
-			m_data->insert({ price, quantity });
+			_data->insert({ price, quantity });
 		}
 		else if (action == "change")
 		{
-			auto it = m_data->find(price);
-			assert(it != m_data->end());
+			auto it = _data->find(price);
+			assert(it != _data->end());
 			it->second = quantity;
 		}
 		else if (action == "delete")
 		{
-			auto it = m_data->find(price);
-			assert(it != m_data->end());
-			m_data->erase(it);
+			auto it = _data->find(price);
+			assert(it != _data->end());
+			_data->erase(it);
 		}
 		else
 		{
@@ -58,7 +58,7 @@ void BookSide<Compare>::print()
 {
 	std::cout << std::endl;
 	std::cout << "Price\tQuantity" << std::endl;
-	for (auto it : *m_data)
+	for (auto it : *_data)
 	{
 		std::cout << it.first << "\t" << it.second << std::endl;
 	}
@@ -73,7 +73,7 @@ double BookSide<Compare>::price_depth(
 	double cum_qty = 0;
 	double price = -1;
 
-	for (const auto& it : *m_data)
+	for (const auto& it : *_data)
 	{
 		cum_qty += it.second;
 		if (order_price == it.first)
@@ -97,7 +97,7 @@ double BookSide<Compare>::price_depth(double quantity)
 	double cum_qty = 0;
 	double price = -1;
 
-	for (const auto& it : *m_data)
+	for (const auto& it : *_data)
 	{
 		cum_qty += it.second;
 
