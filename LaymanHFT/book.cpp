@@ -20,7 +20,7 @@ BookSide<Compare>::~BookSide()
 }
 
 template<typename Compare>
-void BookSide<Compare>::apply_changes(const rapidjson::Value& arr)
+void BookSide<Compare>::update(const rapidjson::Value& arr)
 {
 	assert(arr.IsArray());
 

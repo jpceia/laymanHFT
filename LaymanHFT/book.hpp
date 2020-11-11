@@ -12,7 +12,7 @@ public:
 	BookSide();
 	~BookSide();
 
-	void apply_changes(const rapidjson::Value&);
+	void update(const rapidjson::Value&);
 	void print();
 
 	double price_depth(double, double, double);
