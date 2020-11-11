@@ -110,3 +110,21 @@ double BookSide<Compare>::price_depth(double quantity)
 
 	return price;
 }
+
+
+void Book::update(const rapidjson::Value& data)
+{
+	long change_id = data["change_id"].GetInt64();
+	if (data.HasMember("prev_change_id"))
+	{
+		long prev_change_id = data["prev_change_id"].GetInt64();
+		if (_prev_change_id != prev_change_id)
+		{
+			throw std::exception("Invalid change_id sequence");
+		}
+	}
+	_prev_change_id = change_id;
+
+	this->bids.update(data["bids"]);
+	this->asks.update(data["asks"]);
+}

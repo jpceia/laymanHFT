@@ -25,3 +25,16 @@ private:
 
 using Asks = BookSide<std::less<double>>;
 using Bids = BookSide<std::greater<double>>;
+
+
+class Book
+{
+public:
+	Asks asks;
+	Bids bids;
+
+	void update(const rapidjson::Value&);
+
+private:
+	long _prev_change_id;
+};

@@ -68,8 +68,7 @@ private:
     std::string sell_order_id;
     std::string book_channel, changes_channel;
     bool wait_buy_order_id, wait_sell_order_id;
-    Bids bids;
-    Asks asks;
+    Book book;
 
 public:
     //using DeribitSession::run;
@@ -152,19 +151,7 @@ public:
         // -------------------------------------------------------
         if (channel == book_channel)
         {
-            long change_id = data["change_id"].GetInt64();
-            if (data.HasMember("prev_change_id"))
-            {
-                long msg_prev_change_id = data["prev_change_id"].GetInt64();
-                if (msg_prev_change_id != prev_change_id)
-                {
-                    throw std::exception("Invalid change_id sequence");
-                }
-            }
-            prev_change_id = change_id;
-
-            bids.apply_changes(data["bids"]);
-            asks.apply_changes(data["asks"]);
+            book.update(data);
 
             if (isnan(position_usd))
             {
@@ -177,7 +164,7 @@ public:
 
             if (buy_order_id.empty())
             {
-                double buy_price = bids.price_depth(MID_DEPTH_QTY);
+                double buy_price = book.bids.price_depth(MID_DEPTH_QTY);
 
                 if ((position_usd < MAX_POSITION_USD) &&
                     (buy_price > 0) &&
@@ -209,9 +196,9 @@ public:
             }
             else
             {
-                double buy_price = bids.price_depth(MID_DEPTH_QTY, current_buy_price, current_buy_qty);
-                double min_buy_price = bids.price_depth(MAX_DEPTH_QTY, current_buy_price, current_buy_qty);
-                double max_buy_price = bids.price_depth(MIN_DEPTH_QTY, current_buy_price, current_buy_qty);
+                double buy_price = book.bids.price_depth(MID_DEPTH_QTY, current_buy_price, current_buy_qty);
+                double min_buy_price = book.bids.price_depth(MAX_DEPTH_QTY, current_buy_price, current_buy_qty);
+                double max_buy_price = book.bids.price_depth(MIN_DEPTH_QTY, current_buy_price, current_buy_qty);
                 //std::cout << "BIDS:\t" << min_buy_price << "\t" << buy_price << "\t" << max_buy_price << std::endl;
 
                 if ((current_buy_price > max_buy_price) || (current_buy_price < min_buy_price))
@@ -240,7 +227,7 @@ public:
 
             if (sell_order_id.empty())
             {
-                double sell_price = asks.price_depth(MID_DEPTH_QTY);
+                double sell_price = book.asks.price_depth(MID_DEPTH_QTY);
 
                 if ((position_usd > -MAX_POSITION_USD) &&
                     (sell_price > 0) &&
@@ -272,9 +259,9 @@ public:
             }
             else
             {
-                double sell_price = asks.price_depth(MID_DEPTH_QTY, current_sell_price, current_sell_qty);
-                double max_sell_price = asks.price_depth(MAX_DEPTH_QTY, current_sell_price, current_sell_qty);
-                double min_sell_price = asks.price_depth(MIN_DEPTH_QTY * 0.5, current_sell_price, current_sell_qty);
+                double sell_price = book.asks.price_depth(MID_DEPTH_QTY, current_sell_price, current_sell_qty);
+                double max_sell_price = book.asks.price_depth(MAX_DEPTH_QTY, current_sell_price, current_sell_qty);
+                double min_sell_price = book.asks.price_depth(MIN_DEPTH_QTY * 0.5, current_sell_price, current_sell_qty);
                 //std::cout << "ASKS:\t" << min_sell_price << "\t" << sell_price << "\t" << max_sell_price << std::endl;
 
                 if ((current_sell_price > max_sell_price) || (current_sell_price < min_sell_price))
