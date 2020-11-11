@@ -142,6 +142,7 @@
   <ItemGroup>
     <ClCompile Include="book.cpp" />
     <ClCompile Include="connection.cpp" />
+    <ClCompile Include="deribit_session.cpp" />
     <ClCompile Include="LaymanHFT.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -150,6 +151,7 @@
   <ItemGroup>
     <ClInclude Include="book.hpp" />
     <ClInclude Include="connection.hpp" />
+    <ClInclude Include="deribit_session.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
