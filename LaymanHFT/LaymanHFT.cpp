@@ -36,16 +36,6 @@ const std::string GetJsonText(const rapidjson::Document& d)
 
 
 
-
-struct Order
-{
-    double price = 0;
-    double quantity = 0;
-    std::string id = "";
-    bool wait = false;
-};
-
-
 class SimpleMM_Strategy : public DeribitSession
 {
 private:

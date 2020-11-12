@@ -5,6 +5,17 @@
 #include <functional>
 #include <rapidjson/document.h>
 
+
+struct Order
+{
+	double price = 0;
+	double quantity = 0;
+	std::string id = "";
+	bool wait = false;
+};
+
+
+
 template<typename Compare>
 class BookSide
 {
