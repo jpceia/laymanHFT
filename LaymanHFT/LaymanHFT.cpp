@@ -1,22 +1,17 @@
-#include <cstdlib>
-#include <iostream>
-
-#include <chrono>
-
-#include <assert.h>
-#include <math.h>
-#include <ctime>
-
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/error/error.h>
 #include <rapidjson/error/en.h>
-
+#include <boost/algorithm/clamp.hpp>
+#include <cstdlib>
+#include <iostream>
+#include <chrono>
+#include <assert.h>
+#include <math.h>
+#include <ctime>
 
 #include "deribit_session.hpp"
 #include "book.hpp"
-
-#define CLIP(x, a, b) x > a ? (x < b ? x : b) : a
 
 namespace chrono = std::chrono;
 
@@ -163,7 +158,7 @@ public:
                     (buy_price > 0) &&
                     (!buy_order.wait))
                 {
-                    double buy_qty = CLIP(
+                    double buy_qty = boost::algorithm::clamp(
                         10 * floor(ORDER_AMOUNT * (1 - position_usd / MAX_POSITION_USD) / 10),
                         0, 2 * ORDER_AMOUNT
                     );
@@ -195,7 +190,7 @@ public:
 
                 if ((buy_order.price > max_buy_price) || (buy_order.price < min_buy_price))
                 {
-                    double buy_qty = CLIP(
+                    double buy_qty = boost::algorithm::clamp(
                         10 * floor(ORDER_AMOUNT * (1 - position_usd / MAX_POSITION_USD) / 10),
                         0, 2 * ORDER_AMOUNT
                     );
@@ -225,7 +220,7 @@ public:
                     (sell_price > 0) &&
                     (!sell_order.wait))
                 {
-                    double sell_qty = CLIP(
+                    double sell_qty = boost::algorithm::clamp(
                         10 * floor(ORDER_AMOUNT * (1 + position_usd / MAX_POSITION_USD) / 10),
                         0, 2 * ORDER_AMOUNT
                     );
@@ -257,7 +252,7 @@ public:
 
                 if ((sell_order.price > max_sell_price) || (sell_order.price < min_sell_price))
                 {
-                    double sell_qty = CLIP(
+                    double sell_qty = boost::algorithm::clamp(
                         10 * floor(ORDER_AMOUNT * (1 + position_usd / MAX_POSITION_USD) / 10),
                         0, 2 * ORDER_AMOUNT
                     );
