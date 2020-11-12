@@ -46,26 +46,16 @@ struct Order
 };
 
 
-struct API_Settings
-{
-    URI uri;
-    std::string client_id;
-    std::string client_secret;
-};
-
-
 class SimpleMM_Strategy : public DeribitSession
 {
 private:
     std::string _instrument;
-    std::string _refresh_token;
-    std::string _access_token;
 
     double position_usd;
     Order buy_order, sell_order;
     Book book;
 
-    std::string book_channel, changes_channel;
+    std::string _book_channel, _changes_channel;
 
 public:
     //using DeribitSession::run;
@@ -73,24 +63,14 @@ public:
         const API_Settings& settings,
         const std::string& instrument_name
     ) :
-        DeribitSession(settings.uri),
-        _instrument(instrument_name)
+        DeribitSession(settings),
+        _instrument(instrument_name),
+        _book_channel("book." + _instrument + "." + interval),
+        _changes_channel("user.changes." + _instrument + "." + interval)
     {
         position_usd = NAN; // position class
-        
-        book_channel = "book." + _instrument + "." + interval;
-        changes_channel = "user.changes." + _instrument + "." + interval;
 
-        if (!settings.client_id.empty())
-        {
-            this->send("public/auth", {
-                    {"grant_type", "client_credentials"},
-                    {"client_id", settings.client_id},
-                    {"client_secret", settings.client_secret}
-                });
-
-            this->send("private/get_position", { {"instrument_name", instrument_name } });
-        }
+        this->send("private/get_position", { {"instrument_name", instrument_name } });
 
         // Requesting time from the API platform
         this->send("public/get_time");
@@ -99,7 +79,7 @@ public:
         this->send("public/set_heartbeat", { {"interval", "10"} });
 
         // subscribing channel with book information
-        this->subscribe({ book_channel, changes_channel });
+        this->subscribe({ _book_channel, _changes_channel });
     }
 
     void on_notification(
@@ -137,7 +117,7 @@ public:
         // -------------------------------------------------------
         // Book updates
         // -------------------------------------------------------
-        if (channel == book_channel)
+        if (channel == _book_channel)
         {
             book.update(data);
 
@@ -273,7 +253,7 @@ public:
         // -------------------------------------------------------
         // Changes updates
         // -------------------------------------------------------
-        else if (channel == changes_channel)
+        else if (channel == _changes_channel)
         {
             const auto& trades = data["trades"];
 
@@ -416,17 +396,6 @@ public:
             std::cout << "Server time: " << t_server << std::endl;
             std::cout << std::endl;
         }
-
-        // -----------------------------------------------------------
-        // public / auth
-        // -----------------------------------------------------------
-
-        else if (method == "public/auth")
-        {
-            std::cout << "Receiving new authorization tokens." << std::endl;
-            _refresh_token = result["refresh_token"].GetString();
-            _access_token = result["access_token"].GetString();
-        }
     }
 
     void on_error(
@@ -436,18 +405,9 @@ public:
         const std::string& msg
     )
     {
-        std::cout << "Received error message: (" << code << ") " << msg << std::endl;
-
-        if (code == 13009)
+        if ((code == 11044) || (code == 10010))
         {
-            std::cout << "Expired access_token, requesting a new one." << std::endl;
-            this->send("public/auth", {
-                    {"grant_type", "refresh_token"},
-                    {"refresh_token", _refresh_token}
-                });
-        }
-        else if ((code == 11044) || (code == 10010))
-        {
+            std::cout << "Received error message: (" << code << ") " << msg << std::endl;
             // 11044 - Not open order
             // 10010 - Already closed
             const std::string& order_id = request["order_id"].GetString();

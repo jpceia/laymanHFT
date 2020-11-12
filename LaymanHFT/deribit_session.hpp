@@ -13,17 +13,28 @@
 
 namespace uuids = boost::uuids;         // from <boost/uuid/uuid.hpp>
 
+
+struct API_Settings
+{
+    URI uri;
+    std::string client_id;
+    std::string client_secret;
+};
+
+
 class DeribitSession
 {
 private:
     WSSession _session;
     uuids::random_generator _uuid_gen;
     std::unordered_map<std::string, std::pair<std::string, rapidjson::Document>> _requests;
+    std::string _refresh_token;
+    std::string _access_token;
 
     void send_json(const std::string&, rapidjson::Document&);
 
 public:
-    DeribitSession(const URI&);
+    DeribitSession(const API_Settings&);
 
     void send(const std::string&);
 

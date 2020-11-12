@@ -3,9 +3,18 @@
 #include <rapidjson/writer.h>
 
 
-DeribitSession::DeribitSession(const URI& uri)
-    : _session(uri)
-{}
+DeribitSession::DeribitSession(const API_Settings& settings)
+    : _session(settings.uri)
+{
+    if (!settings.client_id.empty())
+    {
+        this->send("public/auth", {
+                {"grant_type", "client_credentials"},
+                {"client_id", settings.client_id},
+                {"client_secret", settings.client_secret}
+            });
+    }
+}
 
 void DeribitSession::send_json(const std::string& method, rapidjson::Document& params)
 {
@@ -113,7 +122,20 @@ void DeribitSession::on_message(const rapidjson::Value& message) {
         const auto& params = request.second;
         const auto& result = message["result"];
 
-        on_response(method, params, result);
+        // -----------------------------------------------------------
+        // public / auth
+        // -----------------------------------------------------------
+
+        if (method == "public/auth")
+        {
+            // std::cout << "Receiving new authorization tokens." << std::endl;
+            _refresh_token = result["refresh_token"].GetString();
+            _access_token = result["access_token"].GetString();
+        }
+        else
+        {
+            on_response(method, params, result);
+        }
     }
     else if (message.HasMember("error"))
     {
@@ -127,7 +149,18 @@ void DeribitSession::on_message(const rapidjson::Value& message) {
         int code = error["code"].GetInt();
         const auto& msg = error["message"].GetString();
 
-        on_error(method, params, code, msg);
+        if (code == 13009)
+        {
+            // std::cout << "Expired access_token, requesting a new one." << std::endl;
+            this->send("public/auth", {
+                    {"grant_type", "refresh_token"},
+                    {"refresh_token", _refresh_token}
+                });
+        }
+        else
+        {
+            on_error(method, params, code, msg);
+        }
     }
 
 }
