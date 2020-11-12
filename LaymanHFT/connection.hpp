@@ -33,7 +33,7 @@ URI parseURI(const std::string&);
 // Sends a WebSocket message and prints the response
 class WSSession : public std::enable_shared_from_this<WSSession>
 {
-    std::unique_ptr<tcp_websocket> _ws;
+    std::shared_ptr<tcp_websocket> _ws;
     net::io_context _ioc;
 
 public:

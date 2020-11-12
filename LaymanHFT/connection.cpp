@@ -34,7 +34,7 @@ WSSession::WSSession(const URI& uri)
     ctx.set_default_verify_paths();
     ctx.set_options(ssl::context::default_workarounds);
 
-    _ws = std::unique_ptr<tcp_websocket>(new tcp_websocket(net::make_strand(_ioc), ctx));
+    _ws = std::shared_ptr<tcp_websocket>(new tcp_websocket(net::make_strand(_ioc), ctx));
     tcp::resolver resolver{ _ioc };
 
     // Look up the domain name
