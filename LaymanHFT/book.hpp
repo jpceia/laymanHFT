@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <string>
 #include <functional>
 #include <rapidjson/document.h>
 
@@ -43,8 +44,6 @@ class Book
 public:
 	Asks asks;
 	Bids bids;
-
-	Book() : _prev_change_id(0) {};
 
 	void update(const rapidjson::Value&);
 
