@@ -15,13 +15,6 @@
 
 namespace chrono = std::chrono;
 
-const double MIN_DEPTH_QTY = 500;
-const double MID_DEPTH_QTY = 2000;
-const double MAX_DEPTH_QTY = 20000;
-const double ORDER_AMOUNT = 5000;
-const double MAX_POSITION_USD = 50000;
-const std::string interval = "raw";
-
 
 const std::string GetJsonText(const rapidjson::Document& d)
 {
@@ -35,13 +28,27 @@ const std::string GetJsonText(const rapidjson::Document& d)
 }
 
 
+struct Strategy_Params
+{
+    double min_depth = 0;
+    double mid_depth = 0;
+    double max_depth = 0;
+    double order_amount = 0;
+    double max_position_usd = 0;
+    std::string frequency = "raw";
+    std::string intrument1 = "";
+    std::string intrument2 = "";
+};
+
 
 class SimpleMM_Strategy : public DeribitSession
 {
 private:
     std::string _instrument;
 
-    double position_usd;
+    const double kMinDepth, kMidDepth, kMaxDepth;
+    const double kOrderAmount, kMaxPositionUSD;
+    double _position_usd;
     Order buy_order, sell_order;
     Book book;
 
@@ -51,16 +58,21 @@ public:
     //using DeribitSession::run;
     SimpleMM_Strategy(
         const API_Settings& settings,
-        const std::string& instrument_name
+        const Strategy_Params& params
     ) :
         DeribitSession(settings),
-        _instrument(instrument_name),
-        _book_channel("book." + _instrument + "." + interval),
-        _changes_channel("user.changes." + _instrument + "." + interval)
+        kMinDepth(params.min_depth),
+        kMidDepth(params.mid_depth),
+        kMaxDepth(params.max_depth),
+        kOrderAmount(params.order_amount),
+        kMaxPositionUSD(params.max_position_usd),
+        _instrument(params.intrument1),
+        _book_channel("book." + _instrument + "." + params.frequency),
+        _changes_channel("user.changes." + _instrument + "." + params.frequency)
     {
         position_usd = NAN; // position class
 
-        this->send("private/get_position", { {"instrument_name", instrument_name } });
+        this->send("private/get_position", { {"instrument_name", _instrument } });
 
         // Requesting time from the API platform
         this->send("public/get_time");
@@ -111,7 +123,7 @@ public:
         {
             book.update(data);
 
-            if (isnan(position_usd))
+            if (isnan(_position_usd))
             {
                 return;
             }
@@ -122,15 +134,15 @@ public:
 
             if (buy_order.id.empty())
             {
-                double buy_price = book.bids.price_depth(MID_DEPTH_QTY);
+                double buy_price = book.bids.price_depth(kMidDepth);
 
-                if ((position_usd < MAX_POSITION_USD) &&
+                if ((_position_usd < kMaxPositionUSD) &&
                     (buy_price > 0) &&
                     (!buy_order.wait))
                 {
                     double buy_qty = boost::algorithm::clamp(
-                        10 * floor(ORDER_AMOUNT * (1 - position_usd / MAX_POSITION_USD) / 10),
-                        0, 2 * ORDER_AMOUNT
+                        10 * floor(kOrderAmount * (1 - _position_usd / kMaxPositionUSD) / 10),
+                        0, 2 * kOrderAmount
                     );
 
 
@@ -154,15 +166,15 @@ public:
             }
             else
             {
-                double buy_price = book.bids.price_depth(MID_DEPTH_QTY, buy_order.price, buy_order.quantity);
-                double min_buy_price = book.bids.price_depth(MAX_DEPTH_QTY, buy_order.price, buy_order.quantity);
-                double max_buy_price = book.bids.price_depth(MIN_DEPTH_QTY, buy_order.price, buy_order.quantity);
+                double buy_price = book.bids.price_depth(kMidDepth, buy_order.price, buy_order.quantity);
+                double min_buy_price = book.bids.price_depth(kMaxDepth, buy_order.price, buy_order.quantity);
+                double max_buy_price = book.bids.price_depth(kMinDepth, buy_order.price, buy_order.quantity);
 
                 if ((buy_order.price > max_buy_price) || (buy_order.price < min_buy_price))
                 {
                     double buy_qty = boost::algorithm::clamp(
-                        10 * floor(ORDER_AMOUNT * (1 - position_usd / MAX_POSITION_USD) / 10),
-                        0, 2 * ORDER_AMOUNT
+                        10 * floor(kOrderAmount * (1 - _position_usd / kMaxPositionUSD) / 10),
+                        0, 2 * kOrderAmount
                     );
 
                     //std::cout << "Sending request to edit buy order to " << buy_price << std::endl;
@@ -184,15 +196,15 @@ public:
 
             if (sell_order.id.empty())
             {
-                double sell_price = book.asks.price_depth(MID_DEPTH_QTY);
+                double sell_price = book.asks.price_depth(kMidDepth);
 
-                if ((position_usd > -MAX_POSITION_USD) &&
+                if ((_position_usd > -kMaxPositionUSD) &&
                     (sell_price > 0) &&
                     (!sell_order.wait))
                 {
                     double sell_qty = boost::algorithm::clamp(
-                        10 * floor(ORDER_AMOUNT * (1 + position_usd / MAX_POSITION_USD) / 10),
-                        0, 2 * ORDER_AMOUNT
+                        10 * floor(kOrderAmount * (1 + _position_usd / kMaxPositionUSD) / 10),
+                        0, 2 * kOrderAmount
                     );
 
 
@@ -216,15 +228,15 @@ public:
             }
             else
             {
-                double sell_price = book.asks.price_depth(MID_DEPTH_QTY, sell_order.price, sell_order.quantity);
-                double max_sell_price = book.asks.price_depth(MAX_DEPTH_QTY, sell_order.price, sell_order.quantity);
-                double min_sell_price = book.asks.price_depth(MIN_DEPTH_QTY * 0.5, sell_order.price, sell_order.quantity);
+                double sell_price = book.asks.price_depth(kMidDepth, sell_order.price, sell_order.quantity);
+                double max_sell_price = book.asks.price_depth(kMaxDepth, sell_order.price, sell_order.quantity);
+                double min_sell_price = book.asks.price_depth(kMinDepth, sell_order.price, sell_order.quantity);
 
                 if ((sell_order.price > max_sell_price) || (sell_order.price < min_sell_price))
                 {
                     double sell_qty = boost::algorithm::clamp(
-                        10 * floor(ORDER_AMOUNT * (1 + position_usd / MAX_POSITION_USD) / 10),
-                        0, 2 * ORDER_AMOUNT
+                        10 * floor(kOrderAmount * (1 + _position_usd / kMaxPositionUSD) / 10),
+                        0, 2 * kOrderAmount
                     );
 
                     // std::cout << "Sending request to edit sell order to " << sell_price << std::endl;
@@ -260,6 +272,7 @@ public:
                     {
                         std::cout << "Buy order filled" << std::endl;
                         position_usd += amount;
+                        _position_usd += amount;
                         buy_order.id = "";
                         buy_order.wait = false;
                     }
@@ -267,6 +280,7 @@ public:
                     {
                         std::cout << "Sell order filled" << std::endl;
                         position_usd -= amount;
+                        _position_usd -= amount;
                         sell_order.id = "";
                         sell_order.wait = false;
                     }
@@ -279,11 +293,11 @@ public:
                 {
                     if (direction == "buy")
                     {
-                        position_usd += amount;
+                        _position_usd += amount;
                     }
                     else if (direction == "sell")
                     {
-                        position_usd -= amount;
+                        _position_usd -= amount;
                     }
                     else
                     {
@@ -363,12 +377,12 @@ public:
         {
             assert(result["instrument_name"].GetString() == _instrument);
             const double& server_position_usd = result["size"].GetDouble();
-            if (isnan(position_usd))
+            if (isnan(_position_usd))
             {
-                position_usd = server_position_usd;
-                std::cout << "Initial position: " << position_usd << std::endl;
+                _position_usd = server_position_usd;
+                std::cout << "Initial position: " << _position_usd << std::endl;
             }
-            else if (position_usd != server_position_usd)
+            else if (_position_usd != server_position_usd)
             {
                 throw std::exception("Position (USD) mismatch");
             }
@@ -407,15 +421,15 @@ public:
             {
                 buy_order.id = "";
                 buy_order.wait = false;
-                // position_usd += amount;
-                std::cout << "Closed buy order. Position=" << position_usd << std::endl;
+                // _position_usd += amount;
+                std::cout << "Closed buy order. Position=" << _position_usd << std::endl;
             }
             else if (order_id == sell_order.id)
             {
                 sell_order.id = "";
                 sell_order.wait = false;
-                // position_usd -= amount;
-                std::cout << "Closed sell order. Position=" << position_usd << std::endl;
+                // _position_usd -= amount;
+                std::cout << "Closed sell order. Position=" << _position_usd << std::endl;
             }
         }
         else if (code == 13777)
@@ -449,8 +463,17 @@ int main(int argc, char** argv)
         const std::string& client_secret = argc > 4 ? argv[4] : "";
 
         // -------------------------------------------------------------------
-        API_Settings set{ uri, client_id, client_secret };
-        std::make_shared<SimpleMM_Strategy>(set, instrument_name)->run();
+        API_Settings settings{ uri, client_id, client_secret };
+
+        Strategy_Params params;
+        params.min_depth = 500;
+        params.mid_depth = 2000;
+        params.max_depth = 15000;
+        params.order_amount = 5000;
+        params.max_position_usd = 50000;
+        params.intrument1 = instrument_name;
+
+        std::make_shared<SimpleMM_Strategy>(settings, params)->run();
     }
     catch (std::exception const& e)
     {
