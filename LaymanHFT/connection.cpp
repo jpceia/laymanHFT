@@ -66,6 +66,9 @@ WSSession::~WSSession()
 {
     // Close the WebSocket connection
     _ws->close(websocket::close_code::normal);
+
+    // deletes the tcp_websocket before than ioc
+    _ws.reset();
 }
 
 void WSSession::send(std::string msg)
