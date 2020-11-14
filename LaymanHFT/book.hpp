@@ -45,6 +45,8 @@ public:
 	Asks asks;
 	Bids bids;
 
+	Book();
+
 	void update(const rapidjson::Value&);
 
 private:

@@ -112,6 +112,12 @@ double BookSide<Compare>::price_depth(double quantity)
 }
 
 
+Book::Book() : _prev_change_id(0)
+{
+
+}
+
+
 void Book::update(const rapidjson::Value& data)
 {
 	long change_id = data["change_id"].GetInt64();
