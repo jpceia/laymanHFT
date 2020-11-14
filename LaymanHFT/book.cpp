@@ -48,7 +48,7 @@ void BookSide<Compare>::update(const rapidjson::Value& arr)
 		}
 		else
 		{
-			throw std::exception("Invalid change type");
+			throw std::runtime_error("Invalid change type");
 		}
 	}
 }
@@ -126,7 +126,7 @@ void Book::update(const rapidjson::Value& data)
 		long prev_change_id = data["prev_change_id"].GetInt64();
 		if (_prev_change_id != prev_change_id)
 		{
-			throw std::exception("Invalid change_id sequence");
+			throw std::runtime_error("Invalid change_id sequence");
 		}
 	}
 	_prev_change_id = change_id;
