@@ -286,7 +286,7 @@ public:
                     }
                     else
                     {
-                        throw std::exception("Invalid direction.");
+                        throw std::runtime_error("Invalid direction.");
                     }
                 }
                 else if (state == "open")
@@ -301,12 +301,12 @@ public:
                     }
                     else
                     {
-                        throw std::exception("Invalid direction.");
+                        throw std::runtime_error("Invalid direction.");
                     }
                 }
                 else
                 {
-                    throw std::exception("Unexpected state.");
+                    throw std::runtime_error("Unexpected state.");
                 }
             }
         }
@@ -341,7 +341,7 @@ public:
             }
             else
             {
-                throw std::exception("Invalid direction.");
+                throw std::runtime_error("Invalid direction.");
             }
         }
 
@@ -384,7 +384,7 @@ public:
             }
             else if (_position_usd != server_position_usd)
             {
-                throw std::exception("Position (USD) mismatch");
+                throw std::runtime_error("Position (USD) mismatch");
             }
         }
 
@@ -438,7 +438,7 @@ public:
         }
         else
         {
-            throw std::exception("Unexpected error");
+            throw std::runtime_error("Unexpected error");
         }
     }
 };
@@ -475,7 +475,7 @@ int main(int argc, char** argv)
 
         std::make_shared<SimpleMM_Strategy>(settings, params)->run();
     }
-    catch (std::exception const& e)
+    catch (std::runtime_error const& e)
     {
         std::cerr << "Error: " << e.what() << std::endl;
         return EXIT_FAILURE;
