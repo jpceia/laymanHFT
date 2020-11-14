@@ -144,6 +144,7 @@
     <ClCompile Include="connection.cpp" />
     <ClCompile Include="deribit_session.cpp" />
     <ClCompile Include="LaymanHFT.cpp" />
+    <ClCompile Include="strategies.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -152,6 +153,7 @@
     <ClInclude Include="book.hpp" />
     <ClInclude Include="connection.hpp" />
     <ClInclude Include="deribit_session.hpp" />
+    <ClInclude Include="strategies.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
