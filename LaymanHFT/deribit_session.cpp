@@ -3,6 +3,16 @@
 #include <rapidjson/writer.h>
 
 
+std::ostream& operator<<(std::ostream& os, const rapidjson::Value& d)
+{
+    rapidjson::StringBuffer buffer;
+    // buffer.Clear();
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    d.Accept(writer);
+    return os << std::string(buffer.GetString(), buffer.GetSize());
+}
+
+
 DeribitSession::DeribitSession(const API_Settings& settings)
     : _session(settings.uri)
 {
@@ -162,5 +172,4 @@ void DeribitSession::on_message(const rapidjson::Value& message) {
             on_error(method, params, code, msg);
         }
     }
-
 }

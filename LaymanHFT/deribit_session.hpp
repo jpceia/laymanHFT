@@ -9,9 +9,13 @@
 #include <rapidjson/document.h>
 
 #include <unordered_map>
+#include <fstream>
 #include <string>
 
 namespace uuids = boost::uuids;         // from <boost/uuid/uuid.hpp>
+
+
+std::ostream& operator<<(std::ostream&, const rapidjson::Value&);
 
 
 struct API_Settings
@@ -31,20 +35,32 @@ private:
     std::string _refresh_token;
     std::string _access_token;
 
-    void send_json(const std::string&, rapidjson::Document&);
+    void send_json(
+        const std::string&,         // methods
+        rapidjson::Document&        // params
+    );
 
 public:
     DeribitSession(const API_Settings&);
 
-    void send(const std::string&);
+    void send(
+        const std::string&          // methods
+    );
 
-    void send(const std::string&, const std::map < std::string, boost::variant<std::string, double>>&);
+    void send(
+        const std::string&,         // method
+        const std::map < std::string, boost::variant<std::string, double>>& // key-value params
+    );
 
-    void subscribe(const std::vector<std::string>& channels);
+    void subscribe(
+        const std::vector<std::string>& // channels
+    );
 
     void run();
 
-    virtual void on_message(const rapidjson::Value& message);
+    virtual void on_message(
+        const rapidjson::Value&     // message
+    );
 
     virtual void on_notification(
         const std::string&,         // method
@@ -53,9 +69,9 @@ public:
     {};
 
     virtual void on_response(
-        const std::string&, //method
-        const rapidjson::Value&, // request message
-        const rapidjson::Value&  // response contents
+        const std::string&,         // method
+        const rapidjson::Value&,    // request message
+        const rapidjson::Value&     // response contents
     )
     {};
 

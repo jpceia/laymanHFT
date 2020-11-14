@@ -1,11 +1,8 @@
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
-#include <rapidjson/error/error.h>
-#include <rapidjson/error/en.h>
+
 #include <boost/algorithm/clamp.hpp>
 #include <cstdlib>
 #include <iostream>
-#include <fstream>
+
 #include <chrono>
 #include <assert.h>
 #include <math.h>
@@ -15,16 +12,6 @@
 #include "book.hpp"
 
 namespace chrono = std::chrono;
-
-
-std::ostream& operator<<(std::ostream& os, const rapidjson::Value& d)
-{
-    rapidjson::StringBuffer buffer;
-    // buffer.Clear();
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    d.Accept(writer);
-    return os << std::string(buffer.GetString(), buffer.GetSize());
-}
 
 
 struct Strategy_Params
@@ -352,7 +339,7 @@ public:
 
     void on_response(
         const std::string& method,
-        const rapidjson::Value&, // request,
+        const rapidjson::Value&, //request,
         const rapidjson::Value& result
     )
     {
