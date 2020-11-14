@@ -84,3 +84,23 @@ public:
     {};
 };
 
+
+class SubscriptionWriter : public DeribitSession
+{
+private:
+    std::ofstream _ofile;
+
+public:
+    SubscriptionWriter(
+        const URI&,                 // uri,
+        const std::string&,         // file name
+        const std::vector<std::string>& // channels
+    );
+
+    ~SubscriptionWriter();
+
+    void on_notification(
+        const std::string&,         // method
+        const rapidjson::Value&     // params (content)
+    );
+};

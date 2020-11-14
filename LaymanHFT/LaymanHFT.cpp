@@ -27,43 +27,6 @@ struct Strategy_Params
 };
 
 
-class SubscriptionWriter : public DeribitSession
-{
-private:
-    std::ofstream _ofile;
-
-public:
-    SubscriptionWriter(
-        const URI& uri,
-        const std::string& fname,
-        const std::vector<std::string>& channels) :
-        DeribitSession({ uri, "", "" })
-    {
-        this->subscribe(channels);
-
-        _ofile.open(fname);
-    }
-
-    ~SubscriptionWriter()
-    {
-        _ofile.close();
-    }
-
-    void on_notification(
-        const std::string& method,
-        const rapidjson::Value& params
-    )
-    {
-        if (method != "subscription")
-        {
-            return;
-        }
-        
-        _ofile << params["data"] << std::endl;
-    }
-};
-
-
 class SimpleMM_Strategy : public DeribitSession
 {
 private:

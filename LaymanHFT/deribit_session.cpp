@@ -173,3 +173,33 @@ void DeribitSession::on_message(const rapidjson::Value& message) {
         }
     }
 }
+
+
+SubscriptionWriter::SubscriptionWriter(
+    const URI& uri,
+    const std::string& fname,
+    const std::vector<std::string>& channels) :
+    DeribitSession({ uri, "", "" })
+{
+    this->subscribe(channels);
+
+    _ofile.open(fname);
+}
+
+SubscriptionWriter::~SubscriptionWriter()
+{
+    _ofile.close();
+}
+
+void SubscriptionWriter::on_notification(
+    const std::string& method,
+    const rapidjson::Value& params
+)
+{
+    if (method != "subscription")
+    {
+        return;
+    }
+
+    _ofile << params["data"] << std::endl;
+}
