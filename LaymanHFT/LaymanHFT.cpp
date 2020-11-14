@@ -50,7 +50,7 @@ public:
         const URI& uri,
         const std::string& fname,
         const std::vector<std::string>& channels) :
-        DeribitSession({ uri })
+        DeribitSession({ uri, "", "" })
     {
         this->subscribe(channels);
 
@@ -80,15 +80,13 @@ public:
 class SimpleMM_Strategy : public DeribitSession
 {
 private:
-    std::string _instrument;
-
     const double kMinDepth, kMidDepth, kMaxDepth;
     const double kOrderAmount, kMaxPositionUSD;
+    std::string _instrument;
+    std::string _book_channel, _changes_channel;
     double _position_usd;
     Order buy_order, sell_order;
     Book book;
-
-    std::string _book_channel, _changes_channel;
 
 public:
     //using DeribitSession::run;
@@ -354,7 +352,7 @@ public:
 
     void on_response(
         const std::string& method,
-        const rapidjson::Value& request,
+        const rapidjson::Value&, // request,
         const rapidjson::Value& result
     )
     {
@@ -443,7 +441,7 @@ public:
     }
 
     void on_error(
-        const std::string& method,
+        const std::string&, // method
         const rapidjson::Value& request,
         int code,
         const std::string& msg
@@ -455,7 +453,7 @@ public:
             // 11044 - Not open order
             // 10010 - Already closed
             const std::string& order_id = request["order_id"].GetString();
-            const auto& amount = request["amount"].GetDouble();
+            // const auto& amount = request["amount"].GetDouble();
 
             if (order_id == buy_order.id)
             {
