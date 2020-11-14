@@ -49,19 +49,22 @@ public:
     virtual void on_notification(
         const std::string&,         // method
         const rapidjson::Value&     // params (content)
-    ) = 0;
+    )
+    {};
 
     virtual void on_response(
         const std::string&, //method
         const rapidjson::Value&, // request message
         const rapidjson::Value&  // response contents
-    ) = 0;
+    )
+    {};
 
     virtual void on_error(
         const std::string&,         // method
         const rapidjson::Value&,    // request message
         int,                        // error code
         const std::string&          // error message
-    ) = 0;
+    )
+    {};
 };
 
