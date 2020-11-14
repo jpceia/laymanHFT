@@ -5,6 +5,7 @@
 #include <boost/algorithm/clamp.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
 #include <chrono>
 #include <assert.h>
 #include <math.h>
@@ -16,15 +17,13 @@
 namespace chrono = std::chrono;
 
 
-const std::string GetJsonText(const rapidjson::Document& d)
+std::ostream& operator<<(std::ostream& os, const rapidjson::Value& d)
 {
     rapidjson::StringBuffer buffer;
-
     // buffer.Clear();
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     d.Accept(writer);
-
-    return std::string(buffer.GetString(), buffer.GetSize());
+    return os << std::string(buffer.GetString(), buffer.GetSize());
 }
 
 
