@@ -307,7 +307,7 @@ public:
                     if (direction == "buy")
                     {
                         std::cout << "Buy order filled" << std::endl;
-                        position_usd += amount;
+                        std::cout << trade << std::endl;
                         _position_usd += amount;
                         buy_order.id = "";
                         buy_order.wait = false;
@@ -315,7 +315,7 @@ public:
                     else if (direction == "sell")
                     {
                         std::cout << "Sell order filled" << std::endl;
-                        position_usd -= amount;
+                        std::cout << trade << std::endl;
                         _position_usd -= amount;
                         sell_order.id = "";
                         sell_order.wait = false;
@@ -329,10 +329,14 @@ public:
                 {
                     if (direction == "buy")
                     {
+                        std::cout << "Buy order partially filled" << std::endl;
+                        std::cout << trade << std::endl;
                         _position_usd += amount;
                     }
                     else if (direction == "sell")
                     {
+                        std::cout << "Sell order partially filled" << std::endl;
+                        std::cout << trade << std::endl;
                         _position_usd -= amount;
                     }
                     else
@@ -474,6 +478,8 @@ public:
         }
         else
         {
+            std::cout << "Received error message: (" << code << ") " << msg << std::endl;
+            std::cout << request << std::endl;
             throw std::exception("Unexpected error");
         }
     }
