@@ -11,8 +11,7 @@ struct Strategy_Params
     double order_amount = 0;
     double max_position_usd = 0;
     std::string frequency = "raw";
-    std::string intrument1 = "";
-    std::string intrument2 = "";
+    std::string instrument = "";
 };
 
 

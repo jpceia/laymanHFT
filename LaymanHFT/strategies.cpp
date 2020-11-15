@@ -18,7 +18,7 @@ SimpleMM::SimpleMM(
     kMaxDepth(params.max_depth),
     kOrderAmount(params.order_amount),
     kMaxPositionUSD(params.max_position_usd),
-    _instrument(params.intrument1),
+    _instrument(params.instrument),
     _book_channel("book." + _instrument + "." + params.frequency),
     _changes_channel("user.changes." + _instrument + "." + params.frequency)
 {

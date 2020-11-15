@@ -29,7 +29,7 @@ int main(int argc, char** argv)
         params.max_depth = 15000;
         params.order_amount = 5000;
         params.max_position_usd = 50000;
-        params.intrument1 = instrument_name;
+        params.instrument = instrument_name;
 
         std::make_shared<SimpleMM>(settings, params)->run();
     }
