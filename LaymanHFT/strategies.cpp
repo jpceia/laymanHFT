@@ -75,7 +75,7 @@ void SimpleMM::on_subscription_notification(
     {
         book.update(data);
 
-        if (isnan(_position_usd))
+        if (std::isnan(_position_usd))
         {
             return;
         }
@@ -333,7 +333,7 @@ void SimpleMM::on_response(
     {
         assert(result["instrument_name"].GetString() == _instrument);
         const double& server_position_usd = result["size"].GetDouble();
-        if (isnan(_position_usd))
+        if (std::isnan(_position_usd))
         {
             _position_usd = server_position_usd;
             std::cout << "Initial position: " << _position_usd << std::endl;
