@@ -30,6 +30,9 @@
     <ClCompile Include="deribit_session.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="options.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="strategies.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -42,6 +45,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="deribit_session.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="options.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="strategies.hpp">
