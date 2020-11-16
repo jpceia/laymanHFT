@@ -176,5 +176,92 @@ namespace options
 
 			return spot_price * sqrt_time_to_maturity * n;
 		}
+
+
+		void implied_vol_step(
+			const Option& option,
+			double spot_price,
+			double forward_price,
+			double vol,
+			time_t t,
+
+			// result variables
+			double& premium,
+			double& vega
+		)
+		{
+			double time_to_maturity = difftime(option.maturity, t) / (24 * 60 * 60 * 365);  // conversion to years
+			double sqrt_time_to_maturity = std::sqrt(time_to_maturity);
+			double d1 =
+				std::log(forward_price / option.strike) / (vol * sqrt_time_to_maturity) +
+				0.5 * vol * sqrt_time_to_maturity;
+			double d2 = d1 - vol * sqrt_time_to_maturity;
+			double discount = spot_price / forward_price;
+			double N1, N2, n;
+
+			switch (option.type)
+			{
+			case OPTION_TYPE::CALL:
+				N1 = normal_cdf(d1);
+				N2 = normal_cdf(d2);
+				n = normal_pdf(d1);
+				break;
+			case OPTION_TYPE::PUT:
+				N1 = normal_cdf(d1) - 1;
+				N2 = normal_cdf(d2) - 1;
+				n = normal_pdf(d1);
+				break;
+			case OPTION_TYPE::STRADDLE:
+				N1 = 2 * normal_cdf(d1) - 1;
+				N2 = 2 * normal_cdf(d2) - 1;
+				n = 2 * normal_pdf(d1);
+				break;
+			default:
+				throw std::exception("Unknown option type");
+			}
+
+			premium = discount * (forward_price * N1 - option.strike * N2);
+			vega = spot_price * sqrt_time_to_maturity * n;
+		}
+
+
+		double implied_vol(
+			const Option& option,
+			double market_premium,
+			double spot_price,
+			double forward_price,
+			time_t t,
+			double tol,
+			size_t max_steps,
+			double initial_guess
+		)
+		{
+			double vol = initial_guess;
+			double premium, vega;
+			double diff;
+
+			for (size_t k = 0; k < max_steps; k++)
+			{
+				implied_vol_step(
+					option,
+					spot_price,
+					forward_price,
+					vol,
+					t,
+					premium,
+					vega
+				);
+
+				diff = market_premium - premium;
+				vol += diff / vega;
+
+				if (std::abs(diff) < tol)
+				{
+					return vol;
+				}
+			}
+
+			throw std::runtime_error("Algorithm did not converge.");
+		}
 	}
 }
