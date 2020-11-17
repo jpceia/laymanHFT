@@ -33,7 +33,7 @@ namespace options
     namespace black_scholes
     {
 
-        double Premium(
+        double premium(
             const Option& option,
             double spot_price,
             double forward_price,
@@ -74,9 +74,10 @@ namespace options
             return discount * (forward_price * N1 - option.strike * N2);
         }
 
-        double Delta(
+
+        double delta(
             const Option& option,
-            double spot_price,
+            double, // spot_price - not used
             double forward_price,
             double vol,
             time_t t
@@ -108,7 +109,7 @@ namespace options
         }
 
 
-        double Gamma(
+        double gamma(
             const Option& option,
             double spot_price,
             double forward_price,
@@ -144,7 +145,7 @@ namespace options
         }
 
 
-        double Vega(
+        double vega(
             const Option& option,
             double spot_price,
             double forward_price,
@@ -261,7 +262,7 @@ namespace options
                 }
             }
 
-            throw std::runtime_error("Algorithm did not converge.");
+            throw std::runtime_error("The algorithm did not converge.");
         }
     }
 }

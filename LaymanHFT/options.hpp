@@ -22,7 +22,7 @@ namespace options
 
     namespace black_scholes
     {
-        double Premium(
+        double premium(
             const Option& option,
             double spot_price,
             double forward_price,
@@ -30,7 +30,7 @@ namespace options
             time_t t = time(0)
         );
 
-        double Delta(
+        double delta(
             const Option& option,
             double spot_price,
             double forward_price,
@@ -38,7 +38,7 @@ namespace options
             time_t t = time(0)
         );
 
-        double Gamma(
+        double gamma(
             const Option& option,
             double spot_price,
             double forward_price,
@@ -46,7 +46,7 @@ namespace options
             time_t t = time(0)
         );
 
-        double Vega(
+        double vega(
             const Option& option,
             double spot_price,
             double forward_price,
